@@ -45,6 +45,10 @@ COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 # Copy prisma CLI package (v5.14.0) — entrypoint calls node_modules/prisma/build/index.js directly
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+# Copy bcryptjs for admin creation script
+COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
+# Copy admin creation utility script
+COPY scripts/create-admin.mjs ./scripts/create-admin.mjs
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
