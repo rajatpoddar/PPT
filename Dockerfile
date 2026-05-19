@@ -43,9 +43,8 @@ COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-# Copy prisma CLI binary (v5.14.0) so entrypoint doesn't fall back to npx
+# Copy prisma CLI package (v5.14.0) — entrypoint calls node_modules/prisma/build/index.js directly
 COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
 
 # Copy entrypoint script
 COPY docker-entrypoint.sh ./docker-entrypoint.sh
