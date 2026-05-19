@@ -1,0 +1,31 @@
+{
+  "name": "PPT Builders",
+  "short_name": "PPT Builders",
+  "description": "Construction site management app for PPT Builders",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#2563eb",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "shortcuts": [
+    {
+      "name": "Execution View",
+      "url": "/supervisor/execution",
+      "description": "View today's plan and check resources"
+    },
+    {
+      "name": "Submit DPR",
+      "url": "/supervisor/dpr",
+      "description": "Submit daily progress report"
+    }
+  ]
+}

@@ -1,0 +1,173 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+// Note: SQLite does not support native enums. Role, PlanStatus, and
+// ResourceStatus are stored as String columns with application-level
+// enforcement. TypeScript enums / union types are used in application code.
+
+model User {
+  id           String              @id @default(cuid())
+  username     String              @unique
+  passwordHash String
+  role         String              // "ADMIN" | "SUPERVISOR"
+  siteId       String?             // Legacy: primary site assignment (kept for backward compat)
+  site         Site?               @relation("PrimarySite", fields: [siteId], references: [id])
+  supervisorSites SupervisorSite[] // Many-to-many: supervisor can manage multiple sites
+  createdAt    DateTime            @default(now())
+  payments     Payment[]
+  expenses     Expense[]
+}
+
+model Site {
+  id              String           @id @default(cuid())
+  name            String
+  location        String
+  createdAt       DateTime         @default(now())
+  users           User[]           @relation("PrimarySite")
+  supervisorSites SupervisorSite[]
+  dailyPlans      DailyPlan[]
+  payments        Payment[]
+  expenses        Expense[]
+  inventoryAssignments InventoryAssignment[]
+}
+
+// Junction table: supervisor ↔ site (many-to-many)
+model SupervisorSite {
+  id           String   @id @default(cuid())
+  userId       String
+  siteId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  site         Site     @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  assignedAt   DateTime @default(now())
+
+  @@unique([userId, siteId])
+}
+
+model DailyPlan {
+  id              String          @id @default(cuid())
+  siteId          String
+  site            Site            @relation(fields: [siteId], references: [id])
+  date            DateTime        // SQLite does not support @db.Date; store as DateTime
+  goals           String          // JSON array of goal strings
+  status          String          @default("PENDING") // "PENDING" | "COMPLETED"
+  voiceNoteUrl    String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  statusChangedAt DateTime?
+  resources       ResourceTrack[]
+  photos          SitePhoto[]
+  report          DailyReport?
+
+  @@unique([siteId, date])
+}
+
+model ResourceTrack {
+  id        String    @id @default(cuid())
+  planId    String
+  plan      DailyPlan @relation(fields: [planId], references: [id])
+  name      String
+  status    String    @default("PENDING") // "PENDING" | "ARRIVED"
+  arrivedAt DateTime? // server-side timestamp set on arrival
+  createdAt DateTime  @default(now())
+}
+
+model SitePhoto {
+  id         String    @id @default(cuid())
+  planId     String
+  plan       DailyPlan @relation(fields: [planId], references: [id])
+  url        String
+  latitude   Float?
+  longitude  Float?
+  uploadedAt DateTime  @default(now()) // server-side
+}
+
+model DailyReport {
+  id             String    @id @default(cuid())
+  planId         String    @unique
+  plan           DailyPlan @relation(fields: [planId], references: [id])
+  masons         Int
+  helpers        Int
+  length         Float
+  breadth        Float
+  height         Float
+  voiceRemarkUrl String?
+  submittedAt    DateTime  @default(now()) // server-side
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  endpoint  String
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Payment Records ──────────────────────────────────────────────────────────
+// Supervisor records payments made to masons/helpers on a given date.
+model Payment {
+  id           String   @id @default(cuid())
+  siteId       String
+  site         Site     @relation(fields: [siteId], references: [id])
+  supervisorId String
+  supervisor   User     @relation(fields: [supervisorId], references: [id])
+  paymentDate  DateTime // Date the payment was made
+  workerType   String   // "MASON" | "HELPER"
+  workerName   String?  // Optional: individual worker name
+  amount       Float    // Amount paid (INR)
+  note         String?  // Optional note
+  createdAt    DateTime @default(now())
+}
+
+// ─── Expense Records ──────────────────────────────────────────────────────────
+// Supervisor records site expenses (materials, transport, misc).
+model Expense {
+  id           String   @id @default(cuid())
+  siteId       String
+  site         Site     @relation(fields: [siteId], references: [id])
+  supervisorId String
+  supervisor   User     @relation(fields: [supervisorId], references: [id])
+  expenseDate  DateTime // Date the expense was incurred
+  category     String   // "MATERIAL" | "TRANSPORT" | "EQUIPMENT" | "OTHER"
+  description  String
+  amount       Float    // Amount (INR)
+  createdAt    DateTime @default(now())
+}
+
+// ─── Inventory ────────────────────────────────────────────────────────────────
+// Master inventory list — total stock available.
+model InventoryItem {
+  id          String                @id @default(cuid())
+  name        String
+  unit        String                // e.g. "bags", "pieces", "kg", "liters"
+  totalQty    Float                 // Total quantity in stock
+  note        String?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  assignments InventoryAssignment[]
+}
+
+// Tracks how much of an inventory item is assigned to a specific site.
+model InventoryAssignment {
+  id          String        @id @default(cuid())
+  itemId      String
+  item        InventoryItem @relation(fields: [itemId], references: [id])
+  siteId      String
+  site        Site          @relation(fields: [siteId], references: [id])
+  quantity    Float
+  assignedAt  DateTime      @default(now())
+  note        String?
+
+  @@unique([itemId, siteId])
+}
